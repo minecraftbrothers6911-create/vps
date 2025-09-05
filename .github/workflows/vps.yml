@@ -1,0 +1,60 @@
+name: Minecraft Server with Auto Backup + SSH + Playit
+
+on:
+  workflow_dispatch:  # manual trigger
+  schedule:
+    - cron: "0 */6 * * *"  # runs every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  minecraft:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # 5h50m, under GitHub’s 6h limit
+
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.FILEBASE_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.FILEBASE_SECRET_KEY }}
+      FILEBASE_BUCKET: ${{ secrets.FILEBASE_BUCKET }}
+      SSH_PASS: MySecurePass123!
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y openjdk-17-jre tmate unzip curl zip screen wget
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install --update
+
+      - name: Set SSH password
+        run: echo "runner:$SSH_PASS" | sudo chpasswd
+
+      - name: Restore Backup from Filebase
+        run: |
+          mkdir -p server
+          cd server
+          aws --endpoint-url=https://s3.filebase.com s3 cp s3://$FILEBASE_BUCKET/mcbackup.zip mcbackup.zip || echo "No backup found"
+          unzip -o mcbackup.zip || echo "No backup found"
+          cd ..
+
+      - name: Download PaperMC
+        run: |
+          cd server
+          curl -o paper.jar https://api.papermc.io/v2/projects/paper/versions/1.20.1/builds/183/downloads/paper-1.20.1-183.jar
+          echo "eula=true" > eula.txt
+
+      - name: Start Minecraft Server in Screen
+        run: |
+          cd server
+          screen -dmS mc java -Xmx12G -Xms2G -jar paper.jar nogui
+
+      - name: Start SSH + Backup + Playit Loop
+        run: |
+          chmod +x .github/scripts/ssh_playit_loop.sh
+          bash .github/scripts/ssh_playit_loop.sh &
