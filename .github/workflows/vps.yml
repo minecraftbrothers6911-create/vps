@@ -1,24 +1,19 @@
 name: Minecraft Server with Auto Backup + SSH + Playit
 
 on:
-  workflow_dispatch:  # manual trigger
+  workflow_dispatch:   # manual start
   schedule:
-    - cron: "0 */6 * * *"  # runs every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
-
-permissions:
-  contents: write
-  actions: write
+    - cron: "0 */6 * * *"   # every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
 
 jobs:
   minecraft:
     runs-on: ubuntu-latest
-    timeout-minutes: 350   # 5h50m, under GitHub’s 6h limit
+    timeout-minutes: 350   # ~5h50m, under GitHub’s 6h limit
 
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.FILEBASE_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.FILEBASE_SECRET_KEY }}
       FILEBASE_BUCKET: ${{ secrets.FILEBASE_BUCKET }}
-      SSH_PASS: MySecurePass123!
 
     steps:
       - name: Checkout Repo
@@ -33,7 +28,8 @@ jobs:
           sudo ./aws/install --update
 
       - name: Set SSH password
-        run: echo "runner:$SSH_PASS" | sudo chpasswd
+        run: |
+          echo "runner:MySecurePass123!" | sudo chpasswd
 
       - name: Restore Backup from Filebase
         run: |
@@ -54,7 +50,7 @@ jobs:
           cd server
           screen -dmS mc java -Xmx12G -Xms2G -jar paper.jar nogui
 
-      - name: Start SSH + Backup + Playit Loop
+      - name: Start SSH + Backup + Playit
         run: |
           chmod +x .github/scripts/ssh_playit_loop.sh
-          bash .github/scripts/ssh_playit_loop.sh &
+          bash .github/scripts/ssh_playit_loop.sh
