@@ -1,12 +1,14 @@
 name: Minecraft Server with Auto Backup + SSH + Playit
 
 on:
-  workflow_dispatch: # manual start
+  workflow_dispatch:   # Manual trigger
+  schedule:
+    - cron: "15 1,7,13,19 * * *"   # Every 6 hours Nepal Time (UTC+5:45)
 
 jobs:
   minecraft:
     runs-on: ubuntu-latest
-    timeout-minutes: 355   # ~5h50m
+    timeout-minutes: 355   # ~5h50m to stay under GitHub's 6h limit
 
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.FILEBASE_ACCESS_KEY }}
@@ -21,7 +23,7 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y openjdk-17-jre tmate unzip curl zip screen wget gh
+          sudo apt install -y openjdk-17-jre tmate unzip curl zip screen wget
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
           sudo ./aws/install --update
@@ -53,16 +55,3 @@ jobs:
         run: |
           chmod +x .github/scripts/ssh_playit_loop.sh
           bash .github/scripts/ssh_playit_loop.sh &
-
-      - name: Wait 10 minutes before next VPS
-        run: |
-          echo "⏱ Waiting 10 minutes before starting next VPS..."
-          sleep 600
-
-      - name: Trigger Next VPS
-        if: always()
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: |
-          echo "⏭ Triggering next VPS..."
-          gh workflow run "${GITHUB_WORKFLOW}" --ref main
