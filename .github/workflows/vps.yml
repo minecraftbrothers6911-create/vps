@@ -1,19 +1,18 @@
 name: Minecraft Server with Auto Backup + SSH + Playit
 
 on:
-  workflow_dispatch:   # manual start
-  schedule:
-    - cron: "0 */6 * * *"   # every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+  workflow_dispatch: # manual start
 
 jobs:
   minecraft:
     runs-on: ubuntu-latest
-    timeout-minutes: 350   # ~5h50m, under GitHub’s 6h limit
+    timeout-minutes: 355   # ~5h50m
 
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.FILEBASE_ACCESS_KEY }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.FILEBASE_SECRET_KEY }}
       FILEBASE_BUCKET: ${{ secrets.FILEBASE_BUCKET }}
+      SSH_PASS: MySecurePass123!
 
     steps:
       - name: Checkout Repo
@@ -22,14 +21,14 @@ jobs:
       - name: Install Dependencies
         run: |
           sudo apt update
-          sudo apt install -y openjdk-17-jre tmate unzip curl zip screen wget
+          sudo apt install -y openjdk-17-jre tmate unzip curl zip screen wget gh
           curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
           unzip awscliv2.zip
           sudo ./aws/install --update
 
       - name: Set SSH password
         run: |
-          echo "runner:MySecurePass123!" | sudo chpasswd
+          echo "runner:$SSH_PASS" | sudo chpasswd
 
       - name: Restore Backup from Filebase
         run: |
@@ -50,7 +49,20 @@ jobs:
           cd server
           screen -dmS mc java -Xmx12G -Xms2G -jar paper.jar nogui
 
-      - name: Start SSH + Backup + Playit
+      - name: Start SSH + Backup + Playit Loop
         run: |
           chmod +x .github/scripts/ssh_playit_loop.sh
-          bash .github/scripts/ssh_playit_loop.sh
+          bash .github/scripts/ssh_playit_loop.sh &
+
+      - name: Wait 10 minutes before next VPS
+        run: |
+          echo "⏱ Waiting 10 minutes before starting next VPS..."
+          sleep 600
+
+      - name: Trigger Next VPS
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: |
+          echo "⏭ Triggering next VPS..."
+          gh workflow run "${GITHUB_WORKFLOW}" --ref main
