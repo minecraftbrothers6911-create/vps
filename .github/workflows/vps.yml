@@ -8,7 +8,7 @@ on:
 jobs:
   minecraft:
     runs-on: ubuntu-latest
-    timeout-minutes: 355   # ~5h50m, keep under 6h limit
+    timeout-minutes: 355   # ~5h50m, under 6h limit
 
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.FILEBASE_ACCESS_KEY }}
@@ -55,6 +55,3 @@ jobs:
         run: |
           chmod +x .github/scripts/ssh_playit_loop.sh
           bash .github/scripts/ssh_playit_loop.sh &
-
-      - name: Workflow info
-        run: echo "✅ VPS started. Next workflow run will trigger by cron at the next 6-hour interval (30 past the hour UTC)."
