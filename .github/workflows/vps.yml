@@ -1,14 +1,14 @@
 name: Minecraft Server with Auto Backup + SSH + Playit
 
 on:
-  workflow_dispatch:   # Manual trigger
+  workflow_dispatch: # manual start
   schedule:
-    - cron: "15 1,7,13,19 * * *"   # Every 6 hours Nepal Time (UTC+5:45)
+    - cron: "30 */6 * * *"  # every 6 hours at 00:30, 06:30, 12:30, 18:30 UTC
 
 jobs:
   minecraft:
     runs-on: ubuntu-latest
-    timeout-minutes: 355   # ~5h50m to stay under GitHub's 6h limit
+    timeout-minutes: 355   # ~5h50m, keep under 6h limit
 
     env:
       AWS_ACCESS_KEY_ID: ${{ secrets.FILEBASE_ACCESS_KEY }}
@@ -55,3 +55,6 @@ jobs:
         run: |
           chmod +x .github/scripts/ssh_playit_loop.sh
           bash .github/scripts/ssh_playit_loop.sh &
+
+      - name: Workflow info
+        run: echo "✅ VPS started. Next workflow run will trigger by cron at the next 6-hour interval (30 past the hour UTC)."
